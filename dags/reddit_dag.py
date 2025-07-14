@@ -8,6 +8,7 @@ import pandas as pd
 from etls.reddit_etl import connect_reddit, extract_posts, transform_data, load_data_to_csv
 from dotenv import load_dotenv
 from airflow.decorators import dag, task
+from etls.s3_etl import connect_to_s3, create_bucket_if_not_exist, upload_to_s3_bucket
 
 load_dotenv(dotenv_path='../.env')
 
@@ -15,6 +16,7 @@ load_dotenv(dotenv_path='../.env')
 REDDIT_CLIENT_ID = os.getenv('reddit_client_id')
 REDDIT_SECRET_KEY = os.getenv('reddit_secret_key')
 OUTPUT_PATH = os.getenv('output_path')
+AWS_BUCKET_NAME = os.getenv('aws_bucket_name')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from pipelines import reddit_pipeline
@@ -62,6 +64,13 @@ def reddit_dag():
             load_data_to_csv(post_df, file_path)
 
             return file_path
+    
+    @task
+    def upload_to_s3(ti):
+            file_path = ti.xcom_pull(task_ids='extract', key='return_value')
+            s3 = connect_to_s3()
+            create_bucket_if_not_exist(s3, AWS_BUCKET_NAME)
+            upload_to_s3_bucket(s3, file_path, AWS_BUCKET_NAME, file_path.split('/')[-1])
 
     extract_task = extract(
         file_name=f'reddit_{file_postfix}',
@@ -70,7 +79,9 @@ def reddit_dag():
         limit=100
     )
 
-    return extract_task
+    s3_upload_task = upload_to_s3()
+
+    extract_task >> s3_upload_task
 
 
 
