@@ -27,4 +27,4 @@ An end-to-end automated data pipeline that extracts Reddit data, stages it in AW
 
 ## ☁️ Project Architecture
 
-![Architecture Diagram](reddit-pipeline-architecture.png)
+![Architecture Diagram](reddit-pipeline-diagram.png)
